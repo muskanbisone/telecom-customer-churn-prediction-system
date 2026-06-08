@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Predict — ChurnGuard</title>
+
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+
+    <style>
+      .hidden {
+        display: none;
+      }
+
+      .section-box {
+        margin-top: 40px;
+        animation: fadeUp 0.4s ease;
+      }
+
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .profile-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--purple), var(--pink));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 14px;
+        color: white;
+        cursor: pointer;
+        margin-left: 8px;
+        transition:
+          transform 0.2s,
+          box-shadow 0.2s;
+      }
+
+      .profile-icon:hover {
+        transform: scale(1.08);
+        box-shadow: 0 0 10px rgba(124, 58, 237, 0.6);
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- NAVBAR -->
+    <nav class="navbar">
+      <div class="navbar-left">
+        <a href="/" class="nav-link">←</a>
+        <div class="logo-dot">📊</div>
+        <span class="brand-name">ChurnGuard</span>
+      </div>
+
+      <div class="navbar-right">
+        <a href="/" class="nav-link">Home</a>
+        <a href="/logout" class="nav-link">Logout</a>
+        {% if session.get('username') %}
+        <div class="profile-wrapper">
+          <div class="profile-icon" onclick="toggleMenu(this)">
+            {{ session['username'][0] | upper }}
+          </div>
+
+          <div class="profile-menu">
+            <a href="/history">History</a>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </nav>
+
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-content">
+        <p style="margin-bottom: 10px; color: #a78bfa; font-weight: 600">
+          ⚡ AI-Powered Customer Intelligence
+        </p>
+
+        <h1>
+          Choose Your <br />
+          Prediction Method
+        </h1>
+
+        <p>
+          Select how you'd like to predict customer churn using our AI-powered
+          system.
+        </p>
+      </div>
+
+      <!-- CARDS -->
+      <div class="features-cards" style="margin-top: 50px">
+        <!-- MANUAL CARD -->
+        <div class="card" style="width: 400px">
+          <div class="card-icon">
+            <img src="{{ url_for('static', filename='icons/file.svg') }}" />
+          </div>
+
+          <h3>Manual Prediction</h3>
+
+          <p>
+            Enter customer details manually and get instant churn predictions.
+          </p>
+
+          <br />
+
+          <a
+            href="/manual"
+            class="btn btn-light"
+            style="width: 100%; display: block; text-align: center"
+          >
+            Start Prediction →
+          </a>
+        </div>
+
+        <!-- BULK CARD -->
+        <div class="card" style="width: 400px">
+          <div class="card-icon">
+            <img src="{{ url_for('static', filename='icons/upload.svg') }}" />
+          </div>
+
+          <h3>Bulk CSV Upload</h3>
+
+          <p>Upload thousands of records and get bulk churn analysis.</p>
+
+          <br />
+
+          <button onclick="showCSV()" class="btn btn-light" style="width: 100%">
+            Upload CSV →
+          </button>
+        </div>
+      </div>
+
+      <!-- ================= CSV UPLOAD ================= -->
+      <div id="csvSection" class="section-box hidden">
+        <div class="selection-box">
+          <div class="selection-icon">📂</div>
+
+          <h2>CSV BULK PREDICTION</h2>
+
+          <p style="color: var(--muted); margin-bottom: 20px">
+            Upload your CSV file for bulk prediction
+          </p>
+
+          <form action="/csv" method="POST" enctype="multipart/form-data">
+            <div
+              class="upload-area"
+              onclick="document.getElementById('fileInput').click()"
+            >
+              <div id="upload-icon">📁</div>
+              <p id="upload-text">Click to select CSV</p>
+
+              <input
+                type="file"
+                id="fileInput"
+                name="csv_file"
+                accept=".csv"
+                style="display: none"
+                onchange="showFileName(this)"
+                required
+              />
+            </div>
+
+            <button type="submit" class="btn-submit" style="margin-top: 20px">
+              🚀 Predict Now
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- JS -->
+    <script>
+      function showManual() {
+        document.getElementById("manualSection").classList.remove("hidden");
+        document.getElementById("csvSection").classList.add("hidden");
+        document
+          .getElementById("manualSection")
+          .scrollIntoView({ behavior: "smooth" });
+      }
+
+      function showCSV() {
+        document.getElementById("csvSection").classList.remove("hidden");
+        document.getElementById("manualSection").classList.add("hidden");
+        document
+          .getElementById("csvSection")
+          .scrollIntoView({ behavior: "smooth" });
+      }
+
+      function showFileName(input) {
+        if (input.files.length > 0) {
+          document.getElementById("upload-text").innerText =
+            "✅ " + input.files[0].name;
+          document.getElementById("upload-icon").innerText = "✅";
+        }
+      }
+    </script>
+    <script>
+      function toggleMenu(element) {
+        var menu = element.nextElementSibling;
+
+        // close all menus
+        document
+          .querySelectorAll(".profile-menu")
+          .forEach((m) => (m.style.display = "none"));
+
+        // toggle current
+        menu.style.display = menu.style.display === "flex" ? "none" : "flex";
+      }
+
+      window.onclick = function (e) {
+        if (!e.target.closest(".profile-wrapper")) {
+          document
+            .querySelectorAll(".profile-menu")
+            .forEach((m) => (m.style.display = "none"));
+        }
+      };
+    </script>
+  </body>
+</html>

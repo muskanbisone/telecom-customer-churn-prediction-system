@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Result — ChurnGuard</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+
+    <style>
+      /* FIX FOR DROPDOWN */
+      .profile-menu {
+        display: none;
+      }
+
+      .profile-menu.show {
+        display: flex;
+      }
+    </style>
+  </head>
+
+  <body>
+    <nav class="navbar">
+      <div class="navbar-left">
+        <a href="javascript:history.back()" class="nav-link back-btn">← Back</a>
+        <span class="navbar-icon">📈</span>
+        <span class="brand-name">ChurnGuard</span>
+      </div>
+
+      <div class="navbar-right">
+        <a href="/" class="nav-link">Home</a>
+        <a href="/logout" class="nav-link">Logout</a>
+
+        {% if session.get('username') %}
+        <div class="profile-wrapper">
+          <div class="profile-icon" onclick="toggleMenu(this)">
+            {{ session['username'][0] | upper }}
+          </div>
+
+          <div class="profile-menu">
+            <a href="/history">History</a>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </nav>
+
+    <div class="result-container">
+      <div class="result-box">
+        <div
+          class="result-circle {% if class_pred == '1' %}circle-red{% else %}circle-green{% endif %}"
+        >
+          <span>{{ prob }}%</span>
+        </div>
+
+        <h2 class="result-title">Churn Prediction Result</h2>
+
+        <div
+          class="risk-badge {% if class_pred == '1' %}badge-red{% else %}badge-green{% endif %}"
+        >
+          {% if class_pred == '1' %}⚠️ {{ risk }}{% else %}✅ {{ risk }}{% endif %}
+        </div>
+
+        <p class="result-desc">
+          Based on the input parameters, this customer has a
+          <strong>{{ prob }}%</strong> probability of churning.
+        </p>
+
+        <div class="confidence-box">
+          <p class="confidence-label">Model Confidence</p>
+          <div class="confidence-bar-bg">
+            <div
+              class="confidence-bar-fill"
+              style="width: {{ confidence }}%"
+            ></div>
+          </div>
+          <p class="confidence-percent">
+            {% if class_pred == '1' %}
+              {{ confidence }}% Confident of Churn
+            {% else %}
+              {{ confidence }}% Confident of No Churn
+            {% endif %}
+          </p>
+        </div>
+
+        <a href="/manual" class="btn-new-predict">Make New Prediction</a>
+      </div>
+    </div>
+
+    <script>
+      function toggleMenu(element) {
+        var menu = element.nextElementSibling;
+
+        // close all
+        document.querySelectorAll(".profile-menu").forEach((m) => {
+          m.classList.remove("show");
+        });
+
+        // toggle current
+        menu.classList.toggle("show");
+      }
+
+      window.onclick = function (e) {
+        if (!e.target.closest(".profile-wrapper")) {
+          document.querySelectorAll(".profile-menu").forEach((m) => {
+            m.classList.remove("show");
+          });
+        }
+      };
+    </script>
+  </body>
+</html>

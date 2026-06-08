@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard — ChurnGuard</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  </head>
+  <body>
+    <!-- NAVBAR -->
+    <nav class="navbar">
+      <div class="navbar-left">
+        <span class="navbar-icon">📈</span>
+        <span class="brand-name">ChurnGuard</span>
+      </div>
+      <div class="navbar-right">
+        <a href="/" class="nav-link">Home</a>
+        <a href="/predict" class="nav-link">Make a new Prediction</a>
+        <a href="/dashboard" class="nav-link">Dashboard</a>
+        <a href="/logout" class="nav-link">Logout</a>
+        {% if session.get('username') %}
+        <div class="profile-wrapper">
+          <div class="profile-icon" onclick="toggleMenu(this)">
+            {{ session['username'][0] | upper }}
+          </div>
+
+          <div class="profile-menu">
+            <a href="/history">History</a>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </nav>
+
+    <!-- TABS -->
+    <div class="dashboard-tabs">
+      <a href="/csv_result" class="back-arrow">&#8592;</a>
+      <button class="tab-btn active" onclick="showTab('prediction', this)">
+        Prediction Results
+      </button>
+      <button class="tab-btn" onclick="showTab('analysis', this)">
+        Data Analysis
+      </button>
+    </div>
+
+    <!-- PREDICTION TAB -->
+    <div id="prediction" class="tab-content active">
+      <div class="dashboard-container">
+        <h2 class="dash-title">Prediction Results Dashboard</h2>
+
+        <div class="dash-stats">
+          <div
+            class="dash-stat-card"
+            style="background: linear-gradient(135deg, #7c3aed, #4c1d95)"
+          >
+            <h3>{{ total }}</h3>
+            <p>Total Customers</p>
+          </div>
+          <div
+            class="dash-stat-card"
+            style="background: linear-gradient(135deg, #ef4444, #991b1b)"
+          >
+            <h3>{{ high_risk }}</h3>
+            <p>High Risk 🔴</p>
+          </div>
+          <div
+            class="dash-stat-card"
+            style="background: linear-gradient(135deg, #f59e0b, #92400e)"
+          >
+            <h3>{{ medium_risk }}</h3>
+            <p>Medium Risk 🟡</p>
+          </div>
+          <div
+            class="dash-stat-card"
+            style="background: linear-gradient(135deg, #10b981, #065f46)"
+          >
+            <h3>{{ low_risk }}</h3>
+            <p>Low Risk 🟢</p>
+          </div>
+        </div>
+
+        <div class="charts-row">
+          <div class="chart-box">
+            <h3>Risk Distribution</h3>
+            <div id="pie-chart"></div>
+          </div>
+          <div class="chart-box">
+            <h3>Churn vs No Churn</h3>
+            <div id="bar-chart"></div>
+          </div>
+        </div>
+        <div class="charts-row">
+          <div class="chart-box">
+            <h3>Key Factors Affecting Churn</h3>
+            <div id="feature-chart"></div>
+          </div>
+          <div class="chart-box">
+            <h3>Churn Probability Distribution</h3>
+            <div id="prob-chart"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ANALYSIS TAB -->
+    <div id="analysis" class="tab-content">
+      <div class="dashboard-container">
+        <h2 class="dash-title">Data Analysis Dashboard</h2>
+
+        <div class="charts-row">
+          <div class="chart-box">
+            <h3>Gender Distribution</h3>
+            <div id="gender-chart"></div>
+          </div>
+          <div class="chart-box">
+            <h3>Contract Type Distribution</h3>
+            <div id="contract-chart"></div>
+          </div>
+        </div>
+        <div class="charts-row">
+          <div class="chart-box">
+            <h3>Internet Service Distribution</h3>
+            <div id="internet-chart"></div>
+          </div>
+          <div class="chart-box">
+            <h3>Payment Method Distribution</h3>
+            <div id="payment-chart"></div>
+          </div>
+        </div>
+        <div class="charts-row">
+          <div class="chart-box full-width">
+            <h3>Monthly Charges Distribution</h3>
+            <div id="monthly-chart"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // TAB SWITCHING
+      function showTab(tabName, btn) {
+          document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          document.getElementById(tabName).classList.add('active');
+          btn.classList.add('active');
+          if (tabName === 'prediction') drawPredictionCharts();
+          else drawAnalysisCharts();
+      }
+
+      // DATA FROM FLASK
+      var total         = {{ total }};
+      var high_risk     = {{ high_risk }};
+      var medium_risk   = {{ medium_risk }};
+      var low_risk      = {{ low_risk }};
+      var churn_count   = {{ churn_count }};
+      var no_churn      = {{ no_churn_count }};
+      var feat_names    = {{ feature_names | tojson }};
+      var feat_scores   = {{ feature_scores | tojson }};
+      var probs         = {{ probabilities | tojson }};
+      var gender_data   = {{ gender_data | tojson }};
+      var contract_data = {{ contract_data | tojson }};
+      var internet_data = {{ internet_data | tojson }};
+      var payment_data  = {{ payment_data | tojson }};
+      var monthly_ch    = {{ monthly_charges | tojson }};
+
+      // Common Plotly layout base
+      var baseLayout = {
+          paper_bgcolor: 'transparent',
+          plot_bgcolor:  'transparent',
+          font: { color: '#c4b5fd', family: 'Plus Jakarta Sans, sans-serif', size: 12 },
+          margin: { t: 10, b: 40, l: 40, r: 20 }
+      };
+
+      function drawPredictionCharts() {
+          Plotly.newPlot('pie-chart', [{
+              type: 'pie',
+              labels: ['High Risk', 'Medium Risk', 'Low Risk'],
+              values: [high_risk, medium_risk, low_risk],
+              marker: { colors: ['#ef4444', '#f59e0b', '#10b981'] },
+              hole: 0.45,
+              textfont: { color: '#fff' }
+          }], Object.assign({}, baseLayout, { margin: { t:10, b:10, l:10, r:10 }, showlegend: true,
+              legend: { font: { color: '#c4b5fd' } } }));
+
+          Plotly.newPlot('bar-chart', [{
+              type: 'bar',
+              x: ['No Churn', 'Churn'],
+              y: [no_churn, churn_count],
+              marker: {
+                  color: ['#10b981', '#ef4444'],
+                  line: { color: 'transparent' }
+              }
+          }], Object.assign({}, baseLayout, {
+              xaxis: { color: '#94a3b8' },
+              yaxis: { color: '#94a3b8', gridcolor: 'rgba(124,58,237,0.1)' }
+          }));
+
+          Plotly.newPlot('feature-chart', [{
+              type: 'bar',
+              x: feat_scores,
+              y: feat_names,
+              orientation: 'h',
+              marker: {
+                  color: feat_scores,
+                  colorscale: [[0,'#4c1d95'],[1,'#f472b6']],
+                  line: { color: 'transparent' }
+              }
+          }], Object.assign({}, baseLayout, {
+              margin: { t:10, b:40, l:220, r:20 },
+              xaxis: { color: '#94a3b8', gridcolor: 'rgba(124,58,237,0.1)' },
+              yaxis: { color: '#c4b5fd' }
+          }));
+
+          Plotly.newPlot('prob-chart', [{
+              type: 'histogram',
+              x: probs,
+              marker: {
+                  color: '#7c3aed',
+                  line: { color: 'transparent' }
+              },
+              nbinsx: 20
+          }], Object.assign({}, baseLayout, {
+              xaxis: { color: '#94a3b8', title: { text: 'Probability %', font: { color:'#94a3b8' } }, gridcolor: 'rgba(124,58,237,0.1)' },
+              yaxis: { color: '#94a3b8', gridcolor: 'rgba(124,58,237,0.1)' }
+          }));
+      }
+
+      function drawAnalysisCharts() {
+          Plotly.newPlot('gender-chart', [{
+              type: 'pie',
+              labels: Object.keys(gender_data),
+              values: Object.values(gender_data),
+              marker: { colors: ['#7c3aed', '#1a73e8'] },
+              hole: 0.45,
+              textfont: { color: '#fff' }
+          }], Object.assign({}, baseLayout, { margin:{t:10,b:10,l:10,r:10}, showlegend:true,
+              legend:{font:{color:'#c4b5fd'}} }));
+
+          Plotly.newPlot('contract-chart', [{
+              type: 'bar',
+              x: Object.keys(contract_data),
+              y: Object.values(contract_data),
+              marker: { color: ['#7c3aed','#1a73e8','#10b981'], line:{color:'transparent'} }
+          }], Object.assign({}, baseLayout, {
+              xaxis:{color:'#94a3b8'}, yaxis:{color:'#94a3b8',gridcolor:'rgba(124,58,237,0.1)'}
+          }));
+
+          Plotly.newPlot('internet-chart', [{
+              type: 'pie',
+              labels: Object.keys(internet_data),
+              values: Object.values(internet_data),
+              marker: { colors: ['#ef4444','#f59e0b','#10b981'] },
+              hole: 0.45,
+              textfont: { color: '#fff' }
+          }], Object.assign({}, baseLayout, { margin:{t:10,b:10,l:10,r:10}, showlegend:true,
+              legend:{font:{color:'#c4b5fd'}} }));
+
+          Plotly.newPlot('payment-chart', [{
+              type: 'bar',
+              x: Object.keys(payment_data),
+              y: Object.values(payment_data),
+              marker: { color: '#7c3aed', line:{color:'transparent'} }
+          }], Object.assign({}, baseLayout, {
+              xaxis:{color:'#94a3b8',tickangle:-20}, yaxis:{color:'#94a3b8',gridcolor:'rgba(124,58,237,0.1)'},
+              margin:{t:10,b:90,l:40,r:20}
+          }));
+
+          Plotly.newPlot('monthly-chart', [{
+              type: 'histogram',
+              x: monthly_ch,
+              marker: { color: '#1a73e8', line:{color:'transparent'} },
+              nbinsx: 30
+          }], Object.assign({}, baseLayout, {
+              xaxis:{color:'#94a3b8',title:{text:'Monthly Charges ($)',font:{color:'#94a3b8'}},gridcolor:'rgba(124,58,237,0.1)'},
+              yaxis:{color:'#94a3b8',gridcolor:'rgba(124,58,237,0.1)'}
+          }));
+      }
+
+      // Load on start
+      drawPredictionCharts();
+    </script>
+    <script>
+      function toggleMenu(element) {
+        var menu = element.nextElementSibling;
+
+        // close all menus
+        document
+          .querySelectorAll(".profile-menu")
+          .forEach((m) => (m.style.display = "none"));
+
+        // toggle current
+        menu.style.display = menu.style.display === "flex" ? "none" : "flex";
+      }
+
+      window.onclick = function (e) {
+        if (!e.target.closest(".profile-wrapper")) {
+          document
+            .querySelectorAll(".profile-menu")
+            .forEach((m) => (m.style.display = "none"));
+        }
+      };
+    </script>
+  </body>
+</html>
